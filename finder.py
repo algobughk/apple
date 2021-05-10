@@ -9,19 +9,13 @@ def indicator(x, name):
     x = x.rename({0:name}, axis='columns')
     return x
 
-def getPo(t):
-    x = t['close_x']
-    y = t['close_y']
-    if x == 0 or y == 0: return 0
-    elif x > y : return x / y
-    else: return y / x
-
 def get_prices(x):
     df = pd.read_csv('h/%s.csv' % x)
     df = df.dropna()
     df = df.iloc[::-1]
     df = df.reset_index(drop=True)
     
+    #生成技術指標
     sma5 = indicator(talib.MA(df['close'], 5), 'SMA_5')
     sma10 = indicator(talib.MA(df['close'], 10), 'SMA_10')
     sma50 = indicator(talib.MA(df['close'], 50), 'SMA_50')
@@ -98,12 +92,6 @@ def get_prices(x):
     macd = indicator(macd, 'macd')
     macdsignal = indicator(macdsignal, 'macdsignal')
     macdhist = indicator(macdhist, 'macdhist')
-    
-    macdhistu = macdhist.diff().rename(columns={'macdhist':'macdhist_u'})
-    
-    upper, middle, lower = talib.BBANDS(df['close'])
-    upper = indicator(upper, 'upper')
-    lower = indicator(lower, 'lower')
 
     df = pd.concat([df, sma5, sma5u, sma10, sma10u, sma50, sma50u, sma120, sma120u,  rsi, CDL2CROWS, CDL3BLACKCROWS,
     CDL3INSIDE, CDL3LINESTRIKE, CDL3OUTSIDE, CDL3STARSINSOUTH, CDL3WHITESOLDIERS, CDLABANDONEDBABY,
@@ -113,17 +101,17 @@ def get_prices(x):
     CDLINNECK, CDLINVERTEDHAMMER, CDLKICKING, CDLKICKINGBYLENGTH, CDLLADDERBOTTOM, CDLLONGLEGGEDDOJI, CDLLONGLINE, CDLMARUBOZU, 
     CDLMATCHINGLOW, CDLMATHOLD, CDLMORNINGDOJISTAR, CDLMORNINGSTAR, CDLONNECK, CDLPIERCING, CDLRICKSHAWMAN, CDLRISEFALL3METHODS,
     CDLSEPARATINGLINES, CDLSHOOTINGSTAR, CDLSHORTLINE, CDLSPINNINGTOP, CDLSTALLEDPATTERN, CDLSTICKSANDWICH, CDLTAKURI,
-    CDLTASUKIGAP, CDLTHRUSTING, CDLTRISTAR, CDLUNIQUE3RIVER, CDLUPSIDEGAP2CROWS, CDLXSIDEGAP3METHODS, macd, macdsignal, macdhist,
-    upper, lower, macdhistu
+    CDLTASUKIGAP, CDLTHRUSTING, CDLTRISTAR, CDLUNIQUE3RIVER, CDLUPSIDEGAP2CROWS, CDLXSIDEGAP3METHODS, macd, macdsignal, macdhist 
     ], axis=1)
     
     df = df[(df['SMA_50'] > 0)]
     df = df.reset_index(drop=True)
+    df.to_csv('usedTable.csv')
     return df
 
 def flagGen(d):
     l = [
-        (d['close'] > d['SMA_5']),  
+        (d['close'] > d['SMA_5']), 
         (d['SMA_5'] > d['SMA_10']), 
         (d['SMA_10'] > d['SMA_50']), 
         (d['RSI_14'] > 80),
@@ -132,17 +120,6 @@ def flagGen(d):
         (d['SMA_10_u'] > 0),
         (d['SMA_50_u'] > 0),
         (d['macdhist'] > 0),
-        (d['macdhist_u'] > 0),
-        (d['close'] > d['upper']),
-        (d['lower'] > d['close']),
-        (d['CDLABANDONEDBABY'] > 0),
-        (d['CDLABANDONEDBABY'] < 0),
-        (d['CDLADVANCEBLOCK'] > 0),
-        (d['CDLADVANCEBLOCK'] < 0),
-        (d['CDLCLOSINGMARUBOZU'] > 0),
-        (d['CDLCLOSINGMARUBOZU'] < 0),
-        (d['CDLSHOOTINGSTAR'] > 0),
-        (d['CDLSHOOTINGSTAR'] < 0),
         ]
     r = 0
     m = 1
@@ -151,30 +128,17 @@ def flagGen(d):
         m = m * 2
     return int(r)
 
-
 def flag(x):
-    if x == 0: return '表內均非' 
     n = [
         '現價高過5日線',
-        '5日線高過10日線',  
+        '5日線高過10日線', 
         '10日線高過50日線', 
         'RSI高過80',
         'RSI低過20',
         '5日線升',
         '10日線升',
         '50日線升',
-        'MACD柱正數',
-        'MACD柱向上',
-        '現價高過保力加通道頂',
-        '現價低過保力加通道頂',
-        '底部棄嬰 - 牛',
-        '底部棄嬰 - 熊',
-        '大敵當前 - 牛',
-        '大敵當前 - 熊',
-        '收市無影線 - 牛',
-        '收市無影線 - 熊',
-        '射擊之星 - 牛',
-        '射擊之星 - 熊',
+        'macdhist正數',
          ]
     l = [int(d) for d in str(bin(x))[2:]][::-1]
     txt = []
@@ -182,57 +146,39 @@ def flag(x):
         if l[i] == 1: txt.append(n[i])
     return txt
 
-def gotStock(x):
-    h = get_prices(x)
-    
-    #加入10日後10日線作比較
-    h['10day'] = h['SMA_10'].shift(-10)
-    h = h[:-10]
-    h['state'] = h.apply(lambda x: flagGen(x),axis=1)
-    h['diff'] = h['SMA_10'] - h['10day']
-    return h[['close', 'state', 'diff']]
+def getPo(t):
+    x = t['close_x']
+    y = t['close_y']
+    if x == 0 or y == 0: return 0
+    elif x > y : return x / y
+    else: return y / x
 
-#分析list
-l = ['315', '388', '700', '762', '883', '941', '1137', '2098', '6823', 
-     'aapl', 'ccl', 'dis', 'fslr', 'mur', 'sqqq', 'tsla', 'su']
+h = get_prices('1137')
+df = pd.DataFrame(columns=['state', 'change'])
+#加入10日後10日線作比較
+h['10day'] = h['SMA_10'].shift(-10)
+#移除最後無比較的10日
+h = h[:-10]
+#計算狀態
+h['state'] = h.apply(lambda x: flagGen(x),axis=1)
+#清走不用的資料
+h = h[['close', '10day', 'state']]
+#分開及計算升跌日子
+h_p = h[(h['10day'] > h['close'])].groupby('state', as_index=False, sort=False).count()[['state', 'close']]
+h_n = h[(h['close'] > h['10day'])].groupby('state', as_index=False, sort=False).count()[['state', 'close']]
+f = pd.merge(h_p, h_n, on=['state'])[['state','close_x', 'close_y']]
+f.set_index("state", inplace = True)
+f.sort_index()
 
-df = pd.DataFrame()
+#刪走樣本太少的例子
+f['sum'] = f['close_x'] + f['close_y']
+f = f[(f['sum'] > 30)]
 
-print('started')
+f_p = f[(f['close_x'] > f['close_y'])]
+f_n = f[(f['close_y'] > f['close_x'])]
 
-for i in range(len(l)):
-    h2 = gotStock(l[i])
-    #移除升跌幅不明顯的日子
-    h2['diffP'] = h2['diff'] / h2['close']
-    th = h2['diffP'].abs().mean()
-    h2 = h2[((h2['diffP'] > th) | (h2['diffP']  < (th * -1)))]
-    
-    h3 = h2.groupby('state', as_index=False, sort=False)['close'].count()
-    h_p = h2[h2['diff'] > 0].groupby('state', as_index=False, sort=False).count()
-    h_n = h2[h2['diff'] < 0].groupby('state', as_index=False, sort=False).count()
-    f = pd.merge(h_p, h_n, on=['state'])[['state','close_x', 'close_y']]
-    f.set_index("state", inplace = True)
-    f.sort_index()
-    df = df.add(f, fill_value=0)
-
-#移除出現次數太少的組合    
-df['sum'] = df['close_x'] + df['close_y']
-df = df[(df['sum'] > df['sum'].mean())]
-df = df.sort_values(by=['sum'], ascending = False)
-
-#移除升跌比例不明顯的組合
-df['p'] = df.apply(lambda x: getPo(x),axis=1)
-df = df[((df['p'] > df['p'].mean()) & (df['p'] > 2))]
-
-print('清單')
-print(df)
-
-#p為比例
-df_p = df[(df['close_x'] > df['close_y'])]
-df_n = df[(df['close_y'] > df['close_x'])]
-
-print('\n升勢情境：%s' % df_p.index)
-print('升勢情境：%s' % df_n.index)
+print('\n升勢情境：%s' % f_p.index)
+print('跌勢情境：%s' % f_n.index)
 
 #由編號查詢組合方法:
 #flag(1234)
