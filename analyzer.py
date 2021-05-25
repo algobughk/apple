@@ -106,7 +106,6 @@ def get_prices(x):
     
     df = df[(df['SMA_50'] > 0)]
     df = df.reset_index(drop=True)
-    df.to_csv('usedTable.csv')
     return df
 
 def flagGen(d):
