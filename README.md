@@ -1,7 +1,7 @@
 # apple
 蘋果專欄
 
-【一注到尾？逢高減？小注怡情？人工智能bot幫你搵策略】</br>
+【一注到尾？逢高減？小注怡情？人工智能bot幫你搵策略】\n
 https://hk.appledaily.com/finance/20210517/YN4THAVLZRC5LDNEJKMMLEQQ6M/
 
 【股海忌死牛一面頸 AI都學識要轉策略】
